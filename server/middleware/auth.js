@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
+import { inMemoryStore } from '../services/inMemoryStore.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -17,10 +19,8 @@ export const protect = asyncHandler(async (req, res, next) => {
   let payload;
 
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET);
+    payload = jwt.verify(token, process.env.JWT_SECRET || 'transitai_studio_jwt_secret_dev_key_2024');
   } catch (error) {
-    // Convert JWT errors into clean operational errors so the client
-    // receives a predictable JSON response instead of a raw stack trace.
     if (error.name === 'TokenExpiredError') {
       throw new AppError('Token expired', 401);
     }
@@ -28,7 +28,18 @@ export const protect = asyncHandler(async (req, res, next) => {
     throw new AppError('Invalid token', 401);
   }
 
-  const user = await User.findById(payload.id);
+  let user = null;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      user = await User.findById(payload.id);
+    } catch {
+      user = null;
+    }
+  }
+
+  if (!user) {
+    user = inMemoryStore.findUserById(payload.id);
+  }
 
   if (!user) {
     throw new AppError('User no longer exists', 401);

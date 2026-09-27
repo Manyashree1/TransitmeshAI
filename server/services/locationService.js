@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
+import { inMemoryStore } from './inMemoryStore.js';
 import { AppError } from '../utils/AppError.js';
 import { inferRouteProgress } from './stopInferenceService.js';
 
@@ -9,6 +11,14 @@ const interpolate = (from, to, progress) => ({
 });
 
 export async function recordLocation({ busId, latitude, longitude, speedKph = 0, source = 'GPS' }) {
+  if (mongoose.connection.readyState !== 1) {
+    const bus = inMemoryStore.buses.find(b => String(b._id) === String(busId));
+    if (!bus) throw new AppError('Bus not found', 404);
+    bus.location = { latitude: Number(latitude), longitude: Number(longitude), speedKph: Math.max(0, Number(speedKph)), timestamp: new Date(), source };
+    bus.movementStatus = Number(speedKph) > 1 ? 'MOVING' : 'STOPPED';
+    return bus;
+  }
+
   const bus = await Bus.findById(busId);
   if (!bus) throw new AppError('Bus not found', 404);
   if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) throw new AppError('Valid latitude and longitude are required');
@@ -28,6 +38,10 @@ export async function recordLocation({ busId, latitude, longitude, speedKph = 0,
 
 // Development-only source adapter. A future mobile GPS client can call recordLocation instead.
 export async function advanceSimulatedBuses() {
+  if (mongoose.connection.readyState !== 1) {
+    return inMemoryStore.advanceBuses();
+  }
+
   const buses = await Bus.find({ status: 'ACTIVE', tripStatus: 'IN_PROGRESS' });
   const updates = [];
   for (const bus of buses) {

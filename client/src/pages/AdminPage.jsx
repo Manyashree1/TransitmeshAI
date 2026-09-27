@@ -46,7 +46,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const controller = createSocketController({
-      socketFactory: () => io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+      socketFactory: () => io(import.meta.env.VITE_SOCKET_URL || undefined, {
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
