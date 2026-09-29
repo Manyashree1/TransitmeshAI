@@ -1,5 +1,5 @@
 ```yaml
-name: TransitAI Mesh CI
+name: Transitmesh AI CI
 
 on:
   push:
