@@ -18,7 +18,11 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    const url = error.config?.url || '';
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+    const isAuthPage = typeof window !== 'undefined' && (window.location.pathname === '/login' || window.location.pathname === '/register');
+
+    if (!isAuthEndpoint && !isAuthPage && error.response && (error.response.status === 401 || error.response.status === 403)) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

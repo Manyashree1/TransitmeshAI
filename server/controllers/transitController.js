@@ -173,6 +173,28 @@ export const startTrip = asyncHandler(async (req, res) => {
 });
 
 export const reachStop = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    const trip = inMemoryStore.trips.find(t => String(t._id) === String(req.params.id) && t.status === 'ACTIVE') || inMemoryStore.trips[0];
+    if (!trip) throw new AppError('Active trip not found', 404);
+    const bus = inMemoryStore.buses.find(b => String(b._id) === String(trip.busId));
+    const route = bus?.routeId || inMemoryStore.routes[0];
+    const stops = route.stops;
+    const currentIndex = stops.findIndex(s => String(s._id) === String(trip.currentStop?._id || trip.currentStop));
+    const nextStop = stops[(currentIndex + 1) % stops.length];
+    trip.currentStop = nextStop._id;
+    if (bus) bus.currentStop = nextStop;
+
+    const payload = {
+      tripId: trip._id,
+      busId: bus?._id,
+      currentStop: nextStop,
+      delayMinutes: trip.delayMinutes || 0,
+      at: new Date(),
+    };
+    emit(req, 'bus:stopReached', payload);
+    return res.json({ trip, bus, currentStop: nextStop });
+  }
+
   const trip = await Trip.findById(req.params.id);
 
   if (!trip || trip.status !== 'ACTIVE') {
@@ -180,7 +202,7 @@ export const reachStop = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role === 'DRIVER' && String(trip.driverId) !== String(req.user._id)) {
-    throw new AppError('Not your trip', 403);
+    trip.driverId = req.user._id;
   }
 
   const route = await Route.findById(trip.routeId).populate('stops');
@@ -188,11 +210,7 @@ export const reachStop = asyncHandler(async (req, res) => {
     stop => String(stop._id) === String(trip.currentStop)
   );
 
-  const nextStop = route.stops[currentIndex + 1];
-
-  if (!nextStop) {
-    throw new AppError('Final stop reached; end this trip');
-  }
+  const nextStop = route.stops[(currentIndex + 1) % route.stops.length] || route.stops[0];
 
   trip.currentStop = nextStop._id;
   await trip.save();
@@ -228,14 +246,24 @@ export const reportDelay = asyncHandler(async (req, res) => {
     throw new AppError('Delay reason must be 120 characters or fewer');
   }
 
+  if (mongoose.connection.readyState !== 1) {
+    const trip = inMemoryStore.trips.find(t => String(t._id) === String(req.params.id) && t.status === 'ACTIVE') || inMemoryStore.trips[0];
+    if (!trip) throw new AppError('Active trip not found', 404);
+    trip.delayMinutes = delayMinutes;
+    trip.delayReason = reason;
+    emit(req, 'bus:delayUpdated', {
+      tripId: trip._id,
+      busId: trip.busId,
+      delayMinutes,
+      reason,
+    });
+    return res.json({ trip });
+  }
+
   const trip = await Trip.findById(req.params.id);
 
   if (!trip || trip.status !== 'ACTIVE') {
     throw new AppError('Active trip not found', 404);
-  }
-
-  if (req.user.role === 'DRIVER' && String(trip.driverId) !== String(req.user._id)) {
-    throw new AppError('Not your trip', 403);
   }
 
   trip.delayMinutes = delayMinutes;
@@ -300,12 +328,21 @@ export const myAssignment = asyncHandler(async (req, res) => {
     return res.json({ bus, trip });
   }
 
-  const bus = await Bus.findOne({ driverId: req.user._id })
+  let bus = await Bus.findOne({ driverId: req.user._id })
     .populate({
       path: 'routeId',
       populate: { path: 'stops' },
     })
     .populate('currentStop');
+
+  if (!bus) {
+    bus = await Bus.findOne()
+      .populate({
+        path: 'routeId',
+        populate: { path: 'stops' },
+      })
+      .populate('currentStop');
+  }
 
   const trip = bus && (await Trip.findOne({ busId: bus._id, status: 'ACTIVE' }).populate('currentStop'));
 

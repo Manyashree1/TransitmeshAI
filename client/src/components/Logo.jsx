@@ -3,22 +3,26 @@ import { Link } from 'react-router-dom';
 
 export default function Logo({ to = '/' }) {
   return (
-    <Link to={to} className="inline-flex items-center gap-2.5" aria-label="TransitAI Mesh home">
-      <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#9AAE8C] shadow-[0_12px_24px_rgba(154,174,140,0.18)] border border-[#9AAE8C]">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B0D0C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 6v6l4 2" />
+    <Link to={to} className="inline-flex items-center gap-3 group" aria-label="TransitMesh AI home">
+      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform duration-200">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="16" height="16" x="4" y="3" rx="3" />
+          <path d="M4 11h16" />
+          <path d="M8 15h.01" />
+          <path d="M16 15h.01" />
+          <path d="M6 19v2" />
+          <path d="M18 19v2" />
         </svg>
+        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-500/20" />
       </div>
-      <span className="flex flex-col">
-        <span className="text-base font-black tracking-tight text-[#F3F5F2] leading-none">
-          TransitAI Mesh
+      <div className="flex flex-col">
+        <span className="text-base font-extrabold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+          TransitMesh<span className="text-blue-600">.ai</span>
         </span>
-        <span className="text-[10px] font-bold uppercase tracking-[.18em] text-[#9AAE8C] leading-none mt-0.5">
-          Live transit intelligence
+        <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">
+          Live Fleet Intelligence
         </span>
-      </span>
+      </div>
     </Link>
   );
 }
-

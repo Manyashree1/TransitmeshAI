@@ -148,10 +148,46 @@ if (mongoUri) {
   console.log('No MONGODB_URI configured — operating with in-memory fallback store');
 }
 
-const port = 3000;
+const port = process.env.PORT || 3000;
+
+http.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[Server] Port ${port} is already in use. Retrying in 1s...`);
+    setTimeout(() => {
+      try {
+        http.close();
+      } catch (closeErr) {
+        // ignore
+      }
+      http.listen(port, '0.0.0.0');
+    }, 1000);
+  } else {
+    console.error('[Server] Fatal HTTP server error:', err);
+    process.exit(1);
+  }
+});
+
 http.listen(port, '0.0.0.0', () => {
   console.log(`TransitAI running on http://0.0.0.0:${port}`);
 });
+
+const handleExit = () => {
+  console.log('[Server] Gracefully shutting down...');
+  try {
+    io.close();
+    http.close(() => {
+      if (mongoose.connection.readyState === 1) {
+        mongoose.connection.close(false);
+      }
+      process.exit(0);
+    });
+  } catch {
+    process.exit(0);
+  }
+};
+
+process.on('SIGINT', handleExit);
+process.on('SIGTERM', handleExit);
 
 const gpsSimulatorEnabled = process.env.GPS_SIMULATOR_ENABLED !== 'false';
 if (gpsSimulatorEnabled) {

@@ -9,7 +9,7 @@
   "scripts": {
     "build:frontend": "npm run build --workspace=transitai-mesh-client",
     "build": "npm run build --workspace=transitai-mesh-client",
-    "dev": "npm run build:frontend && node server/index.js",
+    "dev": "node server/index.js",
     "start": "node server/index.js",
     "seed": "npm run seed --workspace=transitai-mesh-server"
   }

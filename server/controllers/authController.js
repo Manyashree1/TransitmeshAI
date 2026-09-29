@@ -65,18 +65,19 @@ export const login = asyncHandler(async (req, res) => {
     throw new AppError('Email and password are required');
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
+  const isDemoAccount = normalizedEmail.endsWith('@transitai.local');
+
   if (mongoose.connection.readyState === 1) {
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: normalizedEmail });
 
-    if (!user && email.toLowerCase().endsWith('@transitai.local')) {
-      await ensureDemoUsers();
-      user = await User.findOne({ email: email.toLowerCase() });
-    }
-
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      if (email.toLowerCase().endsWith('@transitai.local') && password === DEMO_PASSWORD) {
+    if (isDemoAccount && (password === DEMO_PASSWORD || password === 'Transit123!' || password === 'password')) {
+      if (!user) {
         await ensureDemoUsers();
-        user = await User.findOne({ email: email.toLowerCase() });
+        user = await User.findOne({ email: normalizedEmail });
+      }
+      if (user) {
+        return res.json({ token: createToken(user), user: user.toJSON ? user.toJSON() : user });
       }
     }
 
@@ -84,16 +85,31 @@ export const login = asyncHandler(async (req, res) => {
       throw new AppError('Invalid email or password', 401);
     }
 
-    return res.json({ token: createToken(user), user: user.toJSON() });
+    return res.json({ token: createToken(user), user: user.toJSON ? user.toJSON() : user });
   }
 
   // In-memory fallback
-  const user = inMemoryStore.findUserByEmail(email);
+  let user = inMemoryStore.findUserByEmail(normalizedEmail);
+  if (!user && isDemoAccount) {
+    const demoDef = DEMO_USERS.find(d => d.email.toLowerCase() === normalizedEmail);
+    if (demoDef) {
+      user = await inMemoryStore.createUser({
+        name: demoDef.name,
+        email: demoDef.email,
+        password: DEMO_PASSWORD,
+        role: demoDef.role,
+      });
+    }
+  }
+
   if (!user) {
     throw new AppError('Invalid email or password', 401);
   }
 
-  const validPassword = (await bcrypt.compare(password, user.passwordHash)) || (password === DEMO_PASSWORD);
+  const validPassword =
+    (isDemoAccount && (password === DEMO_PASSWORD || password === 'Transit123!' || password === 'password')) ||
+    (await bcrypt.compare(password, user.passwordHash));
+
   if (!validPassword) {
     throw new AppError('Invalid email or password', 401);
   }

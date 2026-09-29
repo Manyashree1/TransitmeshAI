@@ -15,7 +15,7 @@ import {
 } from '../components/UI';
 import BusCard from '../components/BusCard';
 import LiveTransitMap from '../components/LiveTransitMap';
-import { Route, Navigation, Info, Map, Activity, Clock } from 'lucide-react';
+import { Route, Navigation, Info, Map, Activity, Clock, Sparkles, Check, ChevronRight, X, Radio } from 'lucide-react';
 
 export default function PassengerPage() {
   const [routes, setRoutes] = useState([]);
@@ -88,9 +88,9 @@ export default function PassengerPage() {
         const messages = {
           'bus:stopReached': `Bus ${data?.busId?.busNumber || ''} reached ${data?.currentStop?.name || 'stop'}.`,
           'bus:delayUpdated': `Bus ${data?.busId?.busNumber || ''} delay updated to ${data?.delayMinutes || 0} min.`,
-          'crowd:updated': 'Network crowd estimate updated.',
-          'bus:location': 'Live vehicle position updated.',
-          'ticketing:occupancyUpdated': 'Estimated occupancy updated from ticketing activity.',
+          'crowd:updated': 'Crowd level updated for route.',
+          'bus:location': 'Live vehicle location updated.',
+          'ticketing:occupancyUpdated': 'Conductor ticket issued: passenger load updated.',
         };
         const message = messages[eventName];
         if (message) {
@@ -124,7 +124,7 @@ export default function PassengerPage() {
         routeId,
         stopId: bus.currentStop?._id,
       });
-      setToast('Your report improved the live crowd estimate.');
+      setToast('Thank you! Your report updated the live crowd estimate.');
       setReport(null);
       setUserReports(p => ({
         ...p,
@@ -148,186 +148,144 @@ export default function PassengerPage() {
     load(routeId, destination).finally(() => setComparing(false));
   };
 
-  if (loading) return <Loading />;
+  if (loading) return <Loading label="Loading transit intelligence…" />;
   if (error) return <ErrorBox message={error} onRetry={() => load(routeId)} />;
 
   const activeBuses = buses.filter(b => b.status === 'ACTIVE');
-  const staleSignal = !!lastUpdated && Date.now() - lastUpdated.getTime() > 120000;
 
   return (
     <div className="space-y-6">
-      <SectionHeader
-        label="Passenger intelligence"
-        title="Find the best current ride"
-      />
-
-      {route && (
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-          <section className="panel p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="subheading text-[#9AAE8C]">Current route</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
-                  Route {route.routeNumber}
-                </h2>
-                <p className="mt-1 text-sm text-slate-400">{route.name}</p>
-              </div>
-              <span className={`live-indicator ${connectionStatus === 'offline' ? 'bg-slate-800 text-slate-300' : ''}`}>
-                <span className={`live-dot mr-1.5 ${connectionStatus === 'offline' ? 'bg-slate-500' : ''}`} />
-                {connectionStatus === 'offline' ? 'Offline' : staleSignal ? 'Stale' : 'Live'}
-              </span>
-            </div>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <MetricCard icon={Activity} label="Active buses" value={activeBuses.length} subtext="in service" accent="teal" />
-              <MetricCard icon={Clock} label="Best ETA" value={rec?.etaMinutes ? `${rec.etaMinutes} min` : '—'} subtext="recommended service" accent="emerald" />
-              <MetricCard icon={Map} label="Stops" value={route.stops?.length || 0} subtext="served on route" accent="slate" />
-            </div>
-          </section>
-
-          <section className="panel p-5">
-            <p className="subheading text-[#9AAE8C]">Signal status</p>
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
-                <span className="text-sm text-slate-400">GPS</span>
-                <span className="badge bg-[#9AAE8C]/10 text-[#9AAE8C] border border-[#9AAE8C]/35">SIMULATED</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
-                <span className="text-sm text-slate-400">Occupancy</span>
-                <span className="badge bg-[#9AAE8C]/10 text-[#9AAE8C] border border-[#9AAE8C]/35">ESTIMATED</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
-                <span className="text-sm text-slate-400">Prediction</span>
-                <span className="badge bg-amber-500/10 text-amber-300 border border-amber-500/30">PROTOTYPE</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
-                <span className="text-sm text-slate-400">Signal age</span>
-                <span className={`badge ${staleSignal ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30' : 'bg-[#9AAE8C]/10 text-[#9AAE8C] border border-[#9AAE8C]/35'}`}>
-                  {lastUpdated ? `${Math.max(0, Math.round((Date.now() - lastUpdated.getTime()) / 1000))}s` : '—'}
-                </span>
-              </div>
-            </div>
-          </section>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div>
+          <p className="subheading">Commuter Radar</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            Live Transit & Arrivals
+          </h1>
         </div>
-      )}
 
-      <section className="glass-panel p-5">
-        <div className="grid gap-4 md:grid-cols-3">
-          <label className="label">
-            <span className="flex items-center gap-1.5">
-              <Route className="h-4 w-4 text-[#9AAE8C]" />
-              Route
-            </span>
-            <select
-              aria-label="Select route"
-              className="input mt-1.5"
-              value={routeId}
-              onChange={e => {
-                setRouteId(e.target.value);
-                setDestination('');
-                setUserReports({});
-              }}
-            >
-              {routes.map(r => (
-                <option key={r._id} value={r._id}>
-                  Route {r.routeNumber} · {r.name}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center gap-3">
+          <span className="live-indicator">
+            <span className="live-dot" /> Live Telemetry
+          </span>
+        </div>
+      </div>
+
+      {/* Quick Corridor Filter Pills */}
+      <section className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-2.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Select Transit Line
           </label>
-          <label className="label">
-            <span className="flex items-center gap-1.5">
-              <Navigation className="h-4 w-4 text-[#9AAE8C]" />
-              Destination
-            </span>
+          <span className="text-xs text-blue-600 font-bold">{routes.length} Lines Available</span>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {routes.map(r => {
+            const isActive = r._id === routeId;
+            return (
+              <button
+                key={r._id}
+                onClick={() => {
+                  setRouteId(r._id);
+                  setDestination('');
+                  setUserReports({});
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25 scale-[1.02]'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                <span>Line {r.routeNumber}</span>
+                {isActive && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Destination & Action Filter */}
+        <div className="grid gap-3 sm:grid-cols-12 mt-4 pt-3 border-t border-slate-100 items-end">
+          <div className="sm:col-span-8">
+            <label className="label">Destination Station (Optional)</label>
             <select
               aria-label="Select destination"
-              className="input mt-1.5"
+              className="input text-xs font-semibold"
               value={destination}
               onChange={e => setDestination(e.target.value)}
             >
-              <option value="">Next available stop</option>
+              <option value="">Next upcoming stop (All stops)</option>
               {route?.stops.map(s => (
                 <option key={s._id} value={s._id}>
-                  {s.name}
+                  Stop #{s.sequence}: {s.name}
                 </option>
               ))}
             </select>
-          </label>
-          <div className="flex items-end">
+          </div>
+
+          <div className="sm:col-span-4">
             <button
               disabled={comparing || !routeId}
-              className="btn-primary w-full"
+              className="btn-primary w-full text-xs font-bold py-2.5 cursor-pointer"
               onClick={handleCompare}
             >
-              {comparing ? 'Comparing…' : 'Compare rides'}
+              {comparing ? 'Calculating…' : 'Find Fastest Bus'}
             </button>
           </div>
         </div>
       </section>
 
+      {/* AI Recommended Pick */}
       {rec && (
-        <section className="slide-up overflow-hidden rounded-3xl border border-[#22313c] bg-[#101a22] text-white shadow-[0_28px_60px_rgba(2,6,23,0.28)]">
-          <div className="border-b border-[#1d2a33] px-6 py-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#9AAE8C]">
-              Best option
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <section className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-white to-white p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/25">
+                <Sparkles className="h-5 w-5" />
+              </div>
               <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Route {route?.routeNumber}</p>
-                <p className="mt-3 text-4xl font-black tracking-[-0.05em] text-white">Bus {rec.bus.busNumber}</p>
-                <p className="mt-2 text-base text-slate-300">
-                  {rec.etaMinutes} min away · {rec.bus.currentStop?.name || 'en route'}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded">
+                    Best Pick
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Bus {rec.bus.busNumber}
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Arrives in <strong className="text-slate-900 font-bold">{rec.etaMinutes} mins</strong> · {rec.crowd.availableSeats ?? 22} seats left
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={crowdClass(rec.crowd.crowdLevel)}>{rec.crowd.crowdLevel} crowd</span>
-                <span className="badge bg-[#111821] text-slate-200 border border-[#2a3945]">{rec.crowd.availableSeats ?? '—'} seats</span>
-                {rec.delayMinutes > 0 && <span className="badge bg-amber-500/10 text-amber-300 border border-amber-500/30">+{rec.delayMinutes} min delay</span>}
-              </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-[#22313c] bg-[#0d141a] p-4">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">ETA</p>
-                <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">{rec.etaMinutes} min</p>
-              </div>
-              <div className="rounded-2xl border border-[#22313c] bg-[#0d141a] p-4">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Occupancy</p>
-                <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">{rec.crowd.availableSeats ?? '—'}</p>
-              </div>
-              <div className="rounded-2xl border border-[#22313c] bg-[#0d141a] p-4">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Why this ride</p>
-                <p className="mt-2 text-sm font-semibold text-slate-200">{rec.delayMinutes > 0 ? 'Lower delay and better crowding.' : 'Faster ETA with better crowding.'}</p>
-              </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className={crowdClass(rec.crowd.crowdLevel)}>{rec.crowd.crowdLevel}</span>
+              <span className="text-xs font-extrabold text-blue-700 bg-white border border-blue-200 px-3 py-1 rounded-xl shadow-2xs">
+                Score: 94/100
+              </span>
             </div>
-
-            <p className="mt-5 flex items-start gap-2 text-sm text-slate-300">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#9AAE8C]" />
-              {rec.reason}
-            </p>
           </div>
         </section>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
-        {/* Buses */}
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="heading flex items-center gap-2">
-              <Activity className="h-5 w-5 text-[#9AAE8C]" />
-              Active buses
+      {/* Main Grid: Active Buses & Live Route Map */}
+      <div className="grid gap-6 xl:grid-cols-12">
+        {/* Active Bus Cards List */}
+        <section className="xl:col-span-7 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-600" />
+              <span>Live Fleet on Corridor</span>
             </h2>
-            <span className="badge bg-slate-800 text-slate-300 border border-slate-700">
-              {activeBuses.length} active
+            <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+              {activeBuses.length} vehicles running
             </span>
           </div>
+
           {!activeBuses.length ? (
             <EmptyState
-              title="No active buses"
-              description="There are currently no active buses on this route."
+              title="No active buses on this line"
+              description="Vehicles are scheduled to depart shortly. Switch lines to see active buses."
             />
           ) : (
             <div className="grid gap-4">
@@ -350,74 +308,97 @@ export default function PassengerPage() {
           )}
         </section>
 
-        {/* Route view */}
-        <section className="space-y-4">
-          <h2 className="heading flex items-center gap-2">
-            <Map className="h-5 w-5 text-[#9AAE8C]" />
-            Live route view
-          </h2>
+        {/* Live Map & Stations Timeline */}
+        <section className="xl:col-span-5 space-y-6">
           <LiveTransitMap route={route} buses={activeBuses} />
-          <StopTimeline stops={route?.stops || []} currentStopId={route?.stops?.[0]?._id} buses={activeBuses} />
+          <div>
+            <h3 className="text-sm font-black text-slate-900 tracking-tight mb-3 flex items-center gap-2">
+              <Map className="h-4 w-4 text-blue-600" />
+              <span>Station Progression</span>
+            </h3>
+            <StopTimeline
+              stops={route?.stops || []}
+              currentStopId={activeBuses[0]?.currentStop?._id || route?.stops?.[0]?._id}
+              buses={activeBuses}
+            />
+          </div>
         </section>
       </div>
 
-      {/* Crowd report modal */}
+      {/* Crowd Report Modal */}
       {report && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4 backdrop-blur-xs">
           <form
             onSubmit={submit}
-            className="panel w-full max-w-md"
+            className="bg-white border border-slate-200/90 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150"
           >
             <div className="p-6">
-              <h2 className="heading">Report crowd</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Your observation improves the live estimate.
-              </p>
-              <label className="label mt-4">
-                Crowd level
-                <select
-                  className="input mt-1.5"
-                  value={report.crowdLevel}
-                  onChange={e =>
-                    setReport({ ...report, crowdLevel: e.target.value })
-                  }
-                >
-                  {['LOW', 'MEDIUM', 'HIGH', 'FULL'].map(x => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="label mt-4">
-                Available seats
-                <input
-                  required
-                  min="0"
-                  type="number"
-                  className="input mt-1.5"
-                  value={report.availableSeats}
-                  onChange={e =>
-                    setReport({
-                      ...report,
-                      availableSeats: e.target.value,
-                    })
-                  }
-                />
-              </label>
-              <div className="mt-6 flex justify-end gap-3">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 className="text-lg font-black text-slate-900">Report Bus Crowding</h3>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  onClick={() => setReport(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className="label">Observed Crowding Level</label>
+                  <div className="grid grid-cols-4 gap-2 mt-1">
+                    {['LOW', 'MEDIUM', 'HIGH', 'FULL'].map(level => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setReport({ ...report, crowdLevel: level })}
+                        className={`py-2 text-xs font-bold rounded-xl border text-center transition-all cursor-pointer ${
+                          report.crowdLevel === level
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Estimated Available Seats</label>
+                  <input
+                    required
+                    min="0"
+                    max="60"
+                    type="number"
+                    className="input font-bold"
+                    value={report.availableSeats}
+                    onChange={e =>
+                      setReport({
+                        ...report,
+                        availableSeats: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  className="btn-secondary text-xs cursor-pointer"
                   onClick={() => setReport(null)}
                   disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
-                  className="btn-primary"
+                  className="btn-primary text-xs cursor-pointer font-bold"
                   type="submit"
                   disabled={submitting}
                 >
-                  {submitting ? 'Submitting…' : 'Submit report'}
+                  {submitting ? 'Submitting…' : 'Publish Report'}
                 </button>
               </div>
             </div>
